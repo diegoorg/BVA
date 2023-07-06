@@ -8,7 +8,7 @@ print("supervision.__version__:", sv.__version__)
 # Check GPU
 import torch
 print('Working with GPU:')
-torch.cuda.is_available()
+print(torch.cuda.is_available())
 
 # Load libraries
 import ultralytics
@@ -20,16 +20,24 @@ import numpy as np
 # load a custom model
 model = YOLO(f"{HOME}/data/model/y8l-0307.pt") 
 
+
 # SETTINGS
 SOURCE_VIDEO_PATH = f"{HOME}/data/raw_video/test1.mp4"
+if os.path.isdir(f"{HOME}/data/raw_video") == False:
+  os.mkdir(f"{HOME}/data/raw_video")
 TARGET_VIDEO_PATH = f"{HOME}/data/proc_video/test1.mp4"
+if os.path.isdir(f"{HOME}/data/proc_video") == False:
+  os.mkdir(f"{HOME}/data/proc_video")
+
 # dict maping class_id to class_name
 CLASS_NAMES_DICT = model.model.names
 print(CLASS_NAMES_DICT)
+
 # class_ids of interest - player and ball-handler
 CLASS_ID = [0,2]
 
 sv.VideoInfo.from_video_path(SOURCE_VIDEO_PATH)
+
 
 # INFERENCE
 # create VideoInfo instance
