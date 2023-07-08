@@ -1,3 +1,5 @@
+import numpy as np
+
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -16,8 +18,25 @@ class observer_hd:
         # Deactivate all players to filter
         self.players_deactivate()
 
+        # Filter multiple bh
+        detections = self.conf_filter(detections, 0)
+        #print(detections.class_id)
+        # Filter multiple balls
+        detections = self.conf_filter(detections, 5)
+
+        # Get the ball
+        if detections[detections.class_id == 5]:
+            if not self.ball:
+                self.ball = ball_obs(detections[detections.class_id == 5])
+            else: self.ball.upd_ball(detections[detections.class_id == 5])
+
+        
+
         # Update first and second layer
         for xyxy, confidence, class_id, tracker_id in detections:
+            # identify potencial ballhandlers
+
+            
             if (class_id == 0) or (class_id == 2):
                 if tracker_id in self.players:
                     # right now this if else makes no sense but we'll see
@@ -39,6 +58,7 @@ class observer_hd:
                 if not self.basket:
                     self.basket = basket_obs(detections[detections.class_id == class_id])
                 else: self.basket.upd_basket(detections[detections.class_id == class_id])
+            # delete this branch
             else:
                 if not self.ball:
                     self.ball = ball_obs(detections[detections.class_id == class_id])
@@ -58,6 +78,59 @@ class observer_hd:
     def players_deactivate(self):
         for _, player in self.players.items():
             player.active = 0
+
+    def conf_filter(self, detections, class_id):
+        # mofify object detection as only one ball handler allowed
+        filter_idx = np.where(detections.class_id == class_id)[0]
+        #print(filter_idx)
+        if filter_idx.size > 1:
+            filtered_conf = detections.confidence[filter_idx]
+            max_idx = filtered_conf.argmax(axis = 0)
+            filter_idx = np.delete(filter_idx, max_idx)
+            if class_id == 0:
+                detections.class_id[filter_idx] = 2
+            elif class_id == 5:
+                detections.xyxy = np.delete(detections.xyxy, filter_idx)
+                detections.class_id = np.delete(detections.class_id, filter_idx)
+                detections.confidence = np.delete(detections.confidence, filter_idx)
+                detections.tracker_id = np.delete(detections.tracker_id, filter_idx)
+        #print(detections.class_id)
+        return detections
+
+    def get_iou(self, bb1, bb2):
+
+        # https://stackoverflow.com/questions/25349178/calculating-percentage-of-bounding-box-overlap-for-image-detector-evaluation
+
+        assert bb1['x1'] < bb1['x2']
+        assert bb1['y1'] < bb1['y2']
+        assert bb2['x1'] < bb2['x2']
+        assert bb2['y1'] < bb2['y2']
+
+        # determine the coordinates of the intersection rectangle
+        x_left = max(bb1['x1'], bb2['x1'])
+        y_top = max(bb1['y1'], bb2['y1'])
+        x_right = min(bb1['x2'], bb2['x2'])
+        y_bottom = min(bb1['y2'], bb2['y2'])
+
+        if x_right < x_left or y_bottom < y_top:
+            return 0.0
+
+        # The intersection of two axis-aligned bounding boxes is always an
+        # axis-aligned bounding box
+        intersection_area = (x_right - x_left + 1) * (y_bottom - y_top + 1)
+
+        # compute the area of both AABBs
+        bb1_area = (bb1['x2'] - bb1['x1'] + 1) * (bb1['y2'] - bb1['y1'] + 1)
+        bb2_area = (bb2['x2'] - bb2['x1'] + 1) * (bb2['y2'] - bb2['y1'] + 1)
+
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
+        assert iou >= 0.0
+        assert iou <= 1.0
+        return iou
+    
 
 
 ### FIRST LAYER OF OBSERVERS ###
@@ -126,22 +199,30 @@ class basket_obs:
 
     def __init__(self, detection):
         #self.xyxy, self.conf, self.class_id, self.tracker_id = detections[detections.tracker_id == tracker_id]
-        self.xyxy, self.conf, self.class_id, self.tracker_id = detection
+        self.xyxy = detection.xyxy, 
+        self.class_id = detection.class_id, 
+        self.conf = detection.confidence
         self.frames = 1
 
     def upd_basket(self, detection):
-        self.xyxy, self.conf, self.class_id, self.tracker_id = detection
+        self.xyxy = detection.xyxy, 
+        self.class_id = detection.class_id, 
+        self.conf = detection.confidence
         self.frames += 1
 
 class ball_obs:
 
     def __init__(self, detection):
         #self.xyxy, self.conf, self.class_id, self.tracker_id = detections[detections.tracker_id == tracker_id]
-        self.xyxy, self.conf, self.class_id, self.tracker_id = detection
+        self.xyxy = detection.xyxy, 
+        self.class_id = detection.class_id, 
+        self.conf = detection.confidence
         self.frames = 1
 
     def upd_ball(self, detection):
-        self.xyxy, self.conf, self.class_id, self.tracker_id = detection
+        self.xyxy = detection.xyxy, 
+        self.class_id = detection.class_id, 
+        self.conf = detection.confidence
         self.frames += 1
 
 
