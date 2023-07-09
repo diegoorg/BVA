@@ -1,5 +1,7 @@
 import numpy as np
 
+# MACROS
+BH_THRES = 2
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -8,6 +10,7 @@ class observer_hd:
         self.players = {}
         self.basket = None
         self.ball = None
+        self.active_bh = None
         # second layer
         self.observers_2 = {}
         # third layer
@@ -18,9 +21,6 @@ class observer_hd:
         # Deactivate all players to filter
         self.players_deactivate()
 
-        # Filter multiple bh
-        detections = self.conf_filter(detections, 0)
-        #print(detections.class_id)
         # Filter multiple balls
         detections = self.conf_filter(detections, 5)
 
@@ -30,13 +30,38 @@ class observer_hd:
                 self.ball = ball_obs(detections[detections.class_id == 5])
             else: self.ball.upd_ball(detections[detections.class_id == 5])
 
-        
+        # Get the ballhandler
+        if self.ball:
+
+            # Assign bh to the player identified as bh that intersects with the ball
+
+            potential_bh_tracker_id = {}
+            # Potential bh intersects ball
+            for xyxy, confidence, class_id, tracker_id in detections[detections.class_id == 0]:
+                intersection = self.intersection(self.ball.xyxy[0], xyxy[0])
+                if intersection > 0:
+                    potential_bh_tracker_id[tracker_id] = class_id
+            # list with bh that intersect with ball
+            #detected_bh = list(potential_bh_tracker_id.keys())[list(potential_bh_tracker_id.values()).index(0)]
+            detected_bh = list(potential_bh_tracker_id.keys())
+            # select bh with higher confidence
+            max_conf = 0
+            for bh_tracker_id in detected_bh:
+                if max_conf < detections[detections.class_id == bh_tracker_id].confidence:
+                    max_conf = detections[detections.class_id == bh_tracker_id].confidence
+                    self.active_bh = bh_tracker_id
+            # filter rest of players
+            self.conf_filter_2(self, detections, class_id, self.active_bh)
+        else:
+            # if the ball is not detected the bh is the detected bh
+            detections = self.conf_filter(detections, 0)
+            if detections[detections.class_id == 0] != None:
+                self.active_bh = detections[detections.class_id == 0].tracker_id
+        # if a new bh is not detected, the active bh is the previous one
 
         # Update first and second layer
         for xyxy, confidence, class_id, tracker_id in detections:
-            # identify potencial ballhandlers
-
-            
+            '''
             if (class_id == 0) or (class_id == 2):
                 if tracker_id in self.players:
                     # right now this if else makes no sense but we'll see
@@ -53,16 +78,43 @@ class observer_hd:
                     else: 
                         self.observers_2['pass_obs'] = pass_obs(self.players[tracker_id])
                         print('pass_obs created')
-
+            '''
+            if class_id == 0:
+                if tracker_id in self.players:
+                    self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
+                    # keep player as class 2 until it gets to the threshold
+                    self.players[tracker_id].class_id = 2
+                    self.players[tracker_id].bh_counter_inc()
+                    print('bh updated!')
+                else: 
+                    self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
+                    # keep player as class 2 until it gets to the threshold
+                    self.players[tracker_id].class_id = 2
+                    self.players[tracker_id].bh_counter_inc()
+                    print('player created!')
+            
+            elif class_id == 2:
+                if tracker_id in self.players:
+                    self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
+                    self.players[tracker_id].bh_counter_reset()
+                    print('bh updated!')
+                else: 
+                    self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
+                    self.players[tracker_id].bh_counter_reset()
+                    print('player created!')
             elif class_id == 3 or class_id == 4:
                 if not self.basket:
                     self.basket = basket_obs(detections[detections.class_id == class_id])
                 else: self.basket.upd_basket(detections[detections.class_id == class_id])
-            # delete this branch
-            else:
-                if not self.ball:
-                    self.ball = ball_obs(detections[detections.class_id == class_id])
-                else: self.ball.upd_ball(detections[detections.class_id == class_id])
+
+            # second layer
+            if (class_id == 0):
+                if 'pass_obs' in self.observers_2:
+                    self.observers_2['pass_obs'].upd_bh(self.players[tracker_id])
+                    print('pass_obs updated')
+                else: 
+                    self.observers_2['pass_obs'] = pass_obs(self.players[tracker_id])
+                    print('pass_obs created')
 
         # this could be made in another method
         for player in self.players:
@@ -96,21 +148,31 @@ class observer_hd:
                 detections.tracker_id = np.delete(detections.tracker_id, filter_idx)
         #print(detections.class_id)
         return detections
+    
+    def conf_filter_2(self, detections, class_id, track_id):
+        if track_id == None:
+            pass
+        else :
+            filter_idx = np.where(detections.class_id == class_id)[0]
+            filter_idx = np.delete(filter_idx, track_id)
+            if class_id == 0:
+                detections.class_id[filter_idx] = 2
+        return detections
 
-    def get_iou(self, bb1, bb2):
+    def intersection(self, bb1, bb2):
 
         # https://stackoverflow.com/questions/25349178/calculating-percentage-of-bounding-box-overlap-for-image-detector-evaluation
 
-        assert bb1['x1'] < bb1['x2']
-        assert bb1['y1'] < bb1['y2']
-        assert bb2['x1'] < bb2['x2']
-        assert bb2['y1'] < bb2['y2']
+        assert bb1[0] < bb1[2]
+        assert bb1[1] < bb1[3]
+        assert bb2[0] < bb2[2]
+        assert bb2[1] < bb2[3]
 
         # determine the coordinates of the intersection rectangle
-        x_left = max(bb1['x1'], bb2['x1'])
-        y_top = max(bb1['y1'], bb2['y1'])
-        x_right = min(bb1['x2'], bb2['x2'])
-        y_bottom = min(bb1['y2'], bb2['y2'])
+        x_left = max(bb1[0], bb2[0])
+        y_top = max(bb1[1], bb2[1])
+        x_right = min(bb1[2], bb2[2])
+        y_bottom = min(bb1[3], bb2[3])
 
         if x_right < x_left or y_bottom < y_top:
             return 0.0
@@ -118,18 +180,7 @@ class observer_hd:
         # The intersection of two axis-aligned bounding boxes is always an
         # axis-aligned bounding box
         intersection_area = (x_right - x_left + 1) * (y_bottom - y_top + 1)
-
-        # compute the area of both AABBs
-        bb1_area = (bb1['x2'] - bb1['x1'] + 1) * (bb1['y2'] - bb1['y1'] + 1)
-        bb2_area = (bb2['x2'] - bb2['x1'] + 1) * (bb2['y2'] - bb2['y1'] + 1)
-
-        # compute the intersection over union by taking the intersection
-        # area and dividing it by the sum of prediction + ground-truth
-        # areas - the interesection area
-        iou = intersection_area / float(bb1_area + bb2_area - intersection_area)
-        assert iou >= 0.0
-        assert iou <= 1.0
-        return iou
+        return intersection_area
     
 
 
@@ -145,6 +196,7 @@ class player_obs:
 
         self.frames = 1
         self._active = 1
+        self.bh_count = 0
 
         self.team = None
         self._player_id = None
@@ -172,6 +224,15 @@ class player_obs:
         if (state):
             self._active = 1
         else: self._active = 0
+
+    def bh_counter_inc(self):
+        self.bh_count += 1
+        if self.bh_count >= BH_THRES:
+            self.class_id = 0
+
+    def bh_counter_reset(self):
+        self.bh_count = 0
+        self.class_id = 2
 
     def isbh(self):
         return (self.class_id == 0)
