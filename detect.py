@@ -28,7 +28,7 @@ def player_id(frame, detections):
     #cv2_imshow(frame)
     player_id = []
     frame_h, frame_w, _ = frame.shape
-    print(frame_h, frame_w)
+    #print(frame_h, frame_w)
     for box, _, class_id, tracker_id in detections:
         #print(box)
         # all numbers positive integers
@@ -51,7 +51,7 @@ def player_id(frame, detections):
         #index += 1
 
         result = reader.readtext(crop, allowlist = reduced_class)
-        print(result)
+        #print(result)
         if result != []:
             id_box, id_num, id_conf = result[0]
             if id_conf >= ID_THRES:

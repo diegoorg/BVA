@@ -85,26 +85,25 @@ class observer_hd:
                     # keep player as class 2 until it gets to the threshold
                     #self.players[tracker_id].class_id = 2
                     self.players[tracker_id].bh_counter_inc()
-                    print('player updated!')
+                    #print('player updated!')
                 else: 
                     self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
                     # keep player as class 2 until it gets to the threshold
                     #self.players[tracker_id].class_id = 2
                     self.players[tracker_id].bh_counter_inc()
-                    print('player created!')
-                print(tracker_id)
+                    #print('player created!')
             
             elif class_id == 2:
                 
                 if tracker_id in self.players:
                     self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
                     self.players[tracker_id].bh_counter_reset()
-                    print('player updated!')
+                    #print('player updated!')
                 else: 
                     self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
                     self.players[tracker_id].bh_counter_reset()
-                    print('player created!')
-                print('hey2')
+                    #print('player created!')
+
             elif class_id == 3 or class_id == 4:
                 if not self.basket:
                     self.basket = basket_obs(detections[detections.class_id == class_id])
@@ -116,11 +115,11 @@ class observer_hd:
             if (player.class_id == 0):
                 if 'pass_obs' in self.observers_2:
                     self.observers_2['pass_obs'].upd_bh(self.players[int(player.tracker_id)])
-                    print('pass_obs updated')
+                    #print('pass_obs updated')
                 else: 
                     print(player.tracker_id)
                     self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
-                    print('pass_obs created')
+                    #print('pass_obs created')
 
         # this could be made in another method
         for player in self.players:
@@ -196,10 +195,12 @@ class observer_hd:
         tracker_id = np.array([])
         if self.players:
             for player in iter(self.players.values()):
-                xyxy = np.vstack([xyxy, player.xyxy])
-                class_id = np.append(class_id, int(player.class_id))
-                confidence = np.append(confidence, player.conf)
-                tracker_id = np.append(tracker_id, int(player.tracker_id))
+                if player._active:
+                    xyxy = np.vstack([xyxy, player.xyxy])
+                    class_id = np.append(class_id, int(player.class_id))
+                    confidence = np.append(confidence, player.conf)
+                    tracker_id = np.append(tracker_id, int(player.tracker_id))
+                else: continue
             detections = sv.Detections(xyxy = xyxy, class_id = class_id.astype(int))
             detections.confidence = confidence
             detections.tracker_id = tracker_id
