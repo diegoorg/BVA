@@ -2,7 +2,7 @@ import numpy as np
 import supervision as sv
 
 # MACROS
-BH_THRES = 2
+BH_THRES = 15
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -253,14 +253,10 @@ class player_obs:
 
     def bh_counter_inc(self):
         self.bh_count += 1
-        print(self.bh_count)
-        print(BH_THRES)
         if self.bh_count >= BH_THRES:
-            print('hey')
             self.class_id = 0
         else:
             self.class_id = 2 
-        print(self.class_id)
 
     def bh_counter_reset(self):
         self.bh_count = 0
