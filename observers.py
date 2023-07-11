@@ -2,7 +2,7 @@ import numpy as np
 import supervision as sv
 
 # MACROS
-BH_THRES = 15
+BH_THRES = 5
 
 class observer_hd:
     # Class to handle all the layers of observers
