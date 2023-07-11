@@ -23,6 +23,8 @@ detections.tracker_id = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
 team_0 = team(0)
 observer = observer_hd(team_0)
 
+#print(detections[detections.class_id == 5].xyxy[0][0])
+
 # frame 1
 observer.upd_observers(detections)
 print(player.player_id for player in observer.players)
@@ -30,9 +32,27 @@ print(player.player_id for player in observer.players)
 print(observer.players)
 
 #frame 2
-detections.class_id = np.array([2, 0, 2, 2, 2, 2, 2, 2, 5])
+detections.class_id = np.array([0, 2, 2, 2, 2, 2, 2, 2, 5])
 observer.upd_observers(detections)
 print(player.player_id for player in observer.players)
 
 print(observer.players)
+
+#frame 3
+observer.upd_observers(detections)
+print(player.player_id for player in observer.players)
+
+print(observer.players)
+
+#frame 4
+detections.class_id = np.array([2, 0, 2, 2, 2, 2, 2, 2, 6])
+observer.upd_observers(detections)
+print(player.player_id for player in observer.players)
+
+#frame 5
+observer.upd_observers(detections)
+print(player.player_id for player in observer.players)
+
+
+
 print(team_0.report())
