@@ -180,5 +180,5 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
 
         sink.write_frame(frame)
         time_stop = timeit.default_timer()
-        print('Time: ', (time_stop - time_start)*1000)
+        print('Time w/o inference: ', (time_stop - time_start)*1000)
 

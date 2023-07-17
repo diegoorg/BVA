@@ -222,8 +222,6 @@ class observer_hd:
         player_id = {}
         for player in iter(self.players.values()):
             player_id[player.tracker_id[0]] = player.player_id
-            print(player.player_id, player.tracker_id)
-        
         return player_id
 
     
