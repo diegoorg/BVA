@@ -118,18 +118,19 @@ class observer_hd:
                     self.basket.upd_basket(detections[detections.class_id == class_id])
 
         for player in iter(self.players.values()):
-            # second layer
-            if (player.class_id == 0):
-                if 'pass_obs' in self.observers_2:
-                    self.observers_2['pass_obs'].upd_bh(self.players[int(player.tracker_id)])
-                    #print('pass_obs updated')
-                else: 
-                    print(player.tracker_id)
-                    self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
-                    #print('pass_obs created')
-            
-            # Player ID
-            player.upd_player_id(frame, self.reader, self.reduced_class)
+            if player.active:
+                # second layer
+                if (player.class_id == 0):
+                    if 'pass_obs' in self.observers_2:
+                        self.observers_2['pass_obs'].upd_bh(self.players[int(player.tracker_id)])
+                        #print('pass_obs updated')
+                    else: 
+                        print(player.tracker_id)
+                        self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
+                        #print('pass_obs created')
+                
+                # Player ID
+                player.upd_player_id(frame, self.reader, self.reduced_class)
 
         # this could be made in another method
         for player in self.players:
