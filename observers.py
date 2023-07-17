@@ -1,8 +1,10 @@
 import numpy as np
 import supervision as sv
+import easyocr
 
 # MACROS
 BH_THRES = 5
+ID_THRES = 0.9
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -17,7 +19,12 @@ class observer_hd:
         # third layer
         self.teams = {0:team} #hardcoded for testing
 
-    def upd_observers(self, detections):
+        # Load OCR model
+        self.reader = easyocr.Reader(['en'])
+        self.reduced_class = '0123456789'
+        
+
+    def upd_observers(self, detections, frame):
 
         # Deactivate all players to filter
         self.players_deactivate()
@@ -120,6 +127,9 @@ class observer_hd:
                     print(player.tracker_id)
                     self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
                     #print('pass_obs created')
+            
+            # Player ID
+            player.upd_player_id(frame, self.reader, self.reduced_class)
 
         # this could be made in another method
         for player in self.players:
@@ -206,6 +216,12 @@ class observer_hd:
             detections.tracker_id = tracker_id
         else: detections = sv.Detections()
         return detections
+    
+    def export_ply_id(self):
+        player_id = []
+        for player in iter(self.players.values()):
+            player_id.append(player.player_id)
+        return player_id
 
     
 
@@ -279,10 +295,41 @@ class player_obs:
             # number identification function
             pass
 
-    def upd_player_id(self, frame):
-        if not self._player_id:
+    def upd_player_id(self, frame, reader, reduced_class):
+        if not self.player_id or self.player_id == 'unk':
             # number identification function
-            pass
+            frame_h, frame_w, _ = frame.shape
+
+            # all numbers positive integers
+            list1 = np.asarray(self.xyxy, dtype = 'int')
+            x1,y1,x2,y2 = [(i > 0) * i for i in list1]
+            #print(x1,x2,y1,y2)
+
+            # hight and width
+            h = y2-y1
+            w = x2-x1
+
+            # make sure all positive
+            a = int(max(0, y1+0.25*h))
+            b = int(min(frame_h, y2-0.5*h))
+            c = int(max(0, x1+0.25*w))
+            d = int(min(frame_w, x2-0.25*w))
+
+            crop = frame[a:b,c:d]
+
+            #img = Image.fromarray(crop, 'RGB')
+            #img.save(f"test{index}.jpeg")
+            #index += 1
+
+            result = reader.readtext(crop, allowlist = reduced_class)
+            #print(result)
+            if result != []:
+                id_box, id_num, id_conf = result[0]
+                if id_conf >= ID_THRES:
+                    self.player_id = id_num
+                else: self.player_id = 'unk'
+            else: self.player_id = 'unk'
+
 
 class basket_obs:
 

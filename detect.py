@@ -15,7 +15,7 @@ import ultralytics
 ultralytics.checks()
 from ultralytics import YOLO
 from tqdm.notebook import tqdm
-import easyocr
+import timeit
 import numpy as np
 #from google.colab.patches import cv2_imshow
 from observers import observer_hd, team
@@ -68,9 +68,9 @@ def zipit(detections, player_ids):
 model = YOLO(f"{HOME}/data/model/y8l-0307.pt") 
 
 # Load OCR model
-reader = easyocr.Reader(['en'])
-reduced_class = '0123456789'
-ID_THRES = 0.9
+#reader = easyocr.Reader(['en'])
+#reduced_class = '0123456789'
+#ID_THRES = 0.9
 
 
 # SETTINGS
@@ -107,6 +107,9 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
 
     # Detect and track objects using ultralytics SDK
     for result in model.track(source=SOURCE_VIDEO_PATH, tracker="botsort.yaml", save=True, stream=True, agnostic_nms=True):
+        
+        # Get time for FPS
+        time_start = timeit.default_timer()  
 
         frame = result.orig_img
         detections = sv.Detections.from_yolov8(result)
@@ -145,12 +148,13 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         )
         '''
         # Feed the player identification
-        player_ids = player_id(frame, detections)
+        #player_ids = player_id(frame, detections)
         
 
         # update observers
-        observer.upd_observers(detections)
+        observer.upd_observers(detections, frame)
         printers = observer.export_obs()
+        player_ids = observer.export_ply_id()
         labels_zip = zipit(printers, player_ids)
         labels = [
             f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, ID: {player_id}"
@@ -159,5 +163,10 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         ]
         # annotate and display frame
         frame = box_annotator.annotate(scene=frame, detections=printers, labels=labels)
+
+        
+
         sink.write_frame(frame)
+        time_stop = timeit.default_timer()
+        print('Time: ', (time_stop - time_start)*1000)
 
