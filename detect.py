@@ -62,7 +62,10 @@ def player_id(frame, detections):
     return player_id
 
 def zipit(detections, player_ids):
-    return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_ids)
+    player_id_short = []
+    for tracker in detections.tracker_id:
+        player_id_short.append(player_ids[tracker])
+    return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_id_short)
 
 # load a YOLOv8 custom model
 model = YOLO(f"{HOME}/data/model/y8l-0307.pt") 
@@ -109,6 +112,7 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
     for result in model.track(source=SOURCE_VIDEO_PATH, tracker="botsort.yaml", save=True, stream=True, agnostic_nms=True):
         
         # Get time for FPS
+        # add inference time
         time_start = timeit.default_timer()  
 
         frame = result.orig_img
@@ -156,11 +160,19 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         printers = observer.export_obs()
         player_ids = observer.export_ply_id()
         labels_zip = zipit(printers, player_ids)
+        
         labels = [
             f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, ID: {player_id}"
             for _, class_id, confidence, tracker_id, player_id
             in labels_zip
         ]
+        '''
+        labels = [
+            f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, ID: {player_ids[tracker_id]}"
+            for _, class_id, confidence, tracker_id
+            in printers
+        ]
+        '''
         # annotate and display frame
         frame = box_annotator.annotate(scene=frame, detections=printers, labels=labels)
 

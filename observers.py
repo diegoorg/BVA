@@ -219,9 +219,11 @@ class observer_hd:
         return detections
     
     def export_ply_id(self):
-        player_id = []
+        player_id = {}
         for player in iter(self.players.values()):
-            player_id.append(player.player_id)
+            player_id[player.tracker_id[0]] = player.player_id
+            print(player.player_id, player.tracker_id)
+        
         return player_id
 
     
@@ -323,7 +325,7 @@ class player_obs:
             #index += 1
 
             result = reader.readtext(crop, allowlist = reduced_class)
-            #print(result)
+            print(result)
             if result != []:
                 id_box, id_num, id_conf = result[0]
                 if id_conf >= ID_THRES:
