@@ -102,7 +102,7 @@ video_info = sv.VideoInfo.from_video_path(SOURCE_VIDEO_PATH)
 # create frame generator
 generator = sv.get_video_frames_generator(SOURCE_VIDEO_PATH)
 # create instance of BoxAnnotator
-box_annotator = sv.BoxAnnotator(color=sv.ColorPalette.default(), thickness=2, text_thickness=2, text_scale=1)
+box_annotator = sv.BoxAnnotator(color=sv.ColorPalette.default(), thickness=2, text_thickness=2, text_scale=0.8)
 
 # open target video file
 with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
