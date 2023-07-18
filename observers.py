@@ -1,10 +1,13 @@
 import numpy as np
 import supervision as sv
 import easyocr
+from utils import decision
 
 # MACROS
 BH_THRES = 5
+TEAM_THRES = 5
 ID_THRES = 0.9
+TH = [0.4934562550056104, 0.44458746597784793, 0.4529725222840385]
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -129,14 +132,10 @@ class observer_hd:
                         self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
                         #print('pass_obs created')
                 
+                
                 # Player ID
                 player.upd_player_id(frame, self.reader, self.reduced_class)
 
-        # this could be made in another method
-        for player in self.players:
-            #player.upd_player_id(frame)
-            pass
-        
         # Update third layer
         self.teams[0].upd_players(self.players)
 
@@ -223,6 +222,12 @@ class observer_hd:
         for player in iter(self.players.values()):
             player_id[player.tracker_id[0]] = player.player_id
         return player_id
+    
+    def export_ply_team(self):
+        player_team = {}
+        for player in iter(self.players.values()):
+            player_team[player.tracker_id[0]] = player.team
+        return player_team
 
     
 
@@ -242,6 +247,8 @@ class player_obs:
         self.bh_count = 0
 
         self.team = None
+        self.team_tmp = None
+        self.team_cnt = 0
         self._player_id = None
 
         #make getters and setters for all this things
@@ -297,7 +304,7 @@ class player_obs:
             pass
 
     def upd_player_id(self, frame, reader, reduced_class):
-        if not self.player_id or self.player_id == 'unk':
+        if not self.player_id or self.player_id == 'unk' or self.team_cnt < TEAM_THRES:
             # number identification function
             frame_h, frame_w, _ = frame.shape
 
@@ -321,15 +328,23 @@ class player_obs:
             #img = Image.fromarray(crop, 'RGB')
             #img.save(f"test{index}.jpeg")
             #index += 1
-
-            result = reader.readtext(crop, allowlist = reduced_class)
-            print(result)
-            if result != []:
-                id_box, id_num, id_conf = result[0]
-                if id_conf >= ID_THRES:
-                    self.player_id = id_num
+            if self.team_cnt < TEAM_THRES:
+                tmp = decision(TH, crop)
+                if self.team_tmp == tmp:
+                    self.team_cnt += 1
+                else: self.team_cnt = 0
+                self.team_tmp = tmp
+                if self.team_cnt == TEAM_THRES:
+                    self.team = tmp
+            if not self.player_id or self.player_id == 'unk':
+                result = reader.readtext(crop, allowlist = reduced_class)
+                print(result)
+                if result != []:
+                    id_box, id_num, id_conf = result[0]
+                    if id_conf >= ID_THRES:
+                        self.player_id = id_num
+                    else: self.player_id = 'unk'
                 else: self.player_id = 'unk'
-            else: self.player_id = 'unk'
 
 
 class basket_obs:

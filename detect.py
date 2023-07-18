@@ -61,11 +61,13 @@ def player_id(frame, detections):
 
     return player_id
 
-def zipit(detections, player_ids):
+def zipit(detections, player_team, player_ids):
     player_id_short = []
+    player_team_short = []
     for tracker in detections.tracker_id:
         player_id_short.append(player_ids[tracker])
-    return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_id_short)
+        player_team_short.append(player_team[tracker])
+    return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_team_short, player_id_short)
 
 # load a YOLOv8 custom model
 model = YOLO(f"{HOME}/data/model/y8l-0307.pt") 
@@ -159,11 +161,12 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         observer.upd_observers(detections, frame)
         printers = observer.export_obs()
         player_ids = observer.export_ply_id()
-        labels_zip = zipit(printers, player_ids)
+        player_team = observer.export_ply_team()
+        labels_zip = zipit(printers, player_team, player_ids)
         
         labels = [
-            f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, ID: {player_id}"
-            for _, class_id, confidence, tracker_id, player_id
+            f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, Team {player_team}, ID: {player_id}"
+            for _, class_id, confidence, tracker_id, player_team, player_id
             in labels_zip
         ]
         '''
