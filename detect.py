@@ -69,6 +69,8 @@ def zipit(detections, player_team, player_ids):
         player_team_short.append(player_team[tracker])
     return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_team_short, player_id_short)
 
+# load an official model
+model = YOLO('yolov8l.pt')  
 # load a YOLOv8 custom model
 model = YOLO(f"{HOME}/data/model/y8l-2207.pt") 
 
@@ -91,7 +93,7 @@ CLASS_NAMES_DICT = model.model.names
 print(CLASS_NAMES_DICT)
 
 # class_ids of interest - player and ball-handler
-CLASS_ID = [0,2]
+CLASS_ID = [0,1,2,3,4]
 
 sv.VideoInfo.from_video_path(SOURCE_VIDEO_PATH)
 
@@ -124,7 +126,7 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
             detections.tracker_id = result.boxes.id.cpu().numpy().astype(int)
 
         # Filtering undesired classes
-        detections = detections[detections.class_id != 1]
+        #detections = detections[detections.class_id != 1]
         '''
         # mofify object detection as only one ball handler allowed
         filter_idx = np.where(detections.class_id == 0)[0]

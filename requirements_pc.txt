@@ -1,4 +1,4 @@
-ultralytics==8.0.125
+ultralytics  #==8.0.125
 lapx
 supervision==0.3.0
 Pillow==9.5.0 #easyocr needs this previous version
