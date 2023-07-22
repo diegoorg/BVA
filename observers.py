@@ -75,7 +75,7 @@ class observer_hd:
             if detections[detections.class_id == CLASSES['ball-handler']]:
                 self.active_bh = detections[detections.class_id == CLASSES['ball-handler']].tracker_id
         # if a new bh is not detected, the active bh is the previous one
-        if detections[detections.class_id == CLASSES['ball-handler']] == None:
+        if not np.any(detections.class_id == CLASSES['ball-handler']):
             detections[detections.tracker_id == self.active_bh].class_id = CLASSES['ball-handler'] 
 
         # Update first and second layer
