@@ -68,15 +68,15 @@ class observer_hd:
                         max_conf = detections[detections.tracker_id == bh_tracker_id].confidence
                         self.active_bh = bh_tracker_id
                 # filter rest of players
-                print(detections)
                 detections = self.conf_filter_2(detections, CLASSES['ball-handler'], self.active_bh)
-                print(detections)
         else:
             # if the ball is not detected the bh is the detected bh
             detections = self.conf_filter(detections, CLASSES['ball-handler'])
             if detections[detections.class_id == CLASSES['ball-handler']]:
                 self.active_bh = detections[detections.class_id == CLASSES['ball-handler']].tracker_id
         # if a new bh is not detected, the active bh is the previous one
+        if detections[detections.class_id == CLASSES['ball-handler']] == None:
+            detections[detections.tracker_id == self.active_bh].class_id = CLASSES['ball-handler'] 
 
         # Update first and second layer
         for xyxy, confidence, class_id, tracker_id in detections:
