@@ -76,7 +76,7 @@ class observer_hd:
                 self.active_bh = detections[detections.class_id == CLASSES['ball-handler']].tracker_id
         # if a new bh is not detected, the active bh is the previous one
         if not np.any(detections.class_id == CLASSES['ball-handler']):
-            detections[detections.tracker_id == self.active_bh].class_id = CLASSES['ball-handler'] 
+            detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']
 
         # Update first and second layer
         for xyxy, confidence, class_id, tracker_id in detections:
@@ -350,7 +350,7 @@ class player_obs:
                     self.team = tmp
             if not self.player_id or self.player_id == 'unk':
                 result = reader.readtext(crop, allowlist = reduced_class)
-                print(result)
+                #print(result)
                 if result != []:
                     id_box, id_num, id_conf = result[0]
                     if id_conf >= ID_THRES:
