@@ -72,7 +72,7 @@ def zipit(detections, player_team, player_ids):
 # load an official model
 model = YOLO('yolov8l.pt')  
 # load a YOLOv8 custom model
-model = YOLO(f"{HOME}/data/model/y8l-2207.pt") 
+model = YOLO(f"{HOME}/data/model/y8l-2207_02.pt") 
 
 # Load OCR model
 #reader = easyocr.Reader(['en'])
@@ -181,7 +181,7 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         # annotate and display frame
         frame = box_annotator.annotate(scene=frame, detections=printers, labels=labels)
 
-        
+        team_0.report()
 
         sink.write_frame(frame)
         time_stop = timeit.default_timer()
