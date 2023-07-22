@@ -70,7 +70,7 @@ def zipit(detections, player_team, player_ids):
     return zip(detections.xyxy, detections.class_id, detections.confidence, detections.tracker_id, player_team_short, player_id_short)
 
 # load a YOLOv8 custom model
-model = YOLO(f"{HOME}/data/model/y8l-0307.pt") 
+model = YOLO(f"{HOME}/data/model/y8l-2207.pt") 
 
 # Load OCR model
 #reader = easyocr.Reader(['en'])
