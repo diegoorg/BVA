@@ -18,6 +18,7 @@ class observer_hd:
         self.basket = None
         self.ball = None
         self.active_bh = None
+        self.old_bh = None
         # second layer
         self.observers_2 = {}
         # third layer
@@ -44,39 +45,41 @@ class observer_hd:
         else: self.ball = None
 
         # Get the ballhandler
-        if self.ball:
-            # Assign bh to the player identified as bh that intersects with the ball
-            potential_bh_tracker_id = {}
-            # Potential bh intersects ball
-            for xyxy, confidence, class_id, tracker_id in detections[detections.class_id == CLASSES['ball-handler']]:
-                intersection = self.intersection(self.ball.xyxy, xyxy)
-                if intersection > 0:
-                    potential_bh_tracker_id[tracker_id] = class_id
-            # If there are no intersections, the detected bh are simply filtered
-            if potential_bh_tracker_id == None:
-                detections = self.conf_filter(detections, CLASSES['ball-handler'])
-                if detections[detections.class_id == CLASSES['ball-handler']]:
-                    self.active_bh = detections[detections.class_id == CLASSES['ball-handler']].tracker_id
-            else:
-                # list with bh that intersect with ball
-                #detected_bh = list(potential_bh_tracker_id.keys())[list(potential_bh_tracker_id.values()).index(0)]
-                detected_bh = list(potential_bh_tracker_id.keys())
-                # select bh with higher confidence
-                max_conf = 0
-                for bh_tracker_id in detected_bh:
-                    if max_conf < detections[detections.tracker_id == bh_tracker_id].confidence:
-                        max_conf = detections[detections.tracker_id == bh_tracker_id].confidence
-                        self.active_bh = bh_tracker_id
-                # filter rest of players
-                detections = self.conf_filter_2(detections, CLASSES['ball-handler'], self.active_bh)
-        else:
-            # if the ball is not detected the bh is the detected bh
-            detections = self.conf_filter(detections, CLASSES['ball-handler'])
-            if detections[detections.class_id == CLASSES['ball-handler']]:
-                self.active_bh = detections[detections.class_id == CLASSES['ball-handler']].tracker_id
         # if a new bh is not detected, the active bh is the previous one
         if not np.any(detections.class_id == CLASSES['ball-handler']):
-            detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']
+            pass
+        else:
+            if self.ball:
+                # Assign bh to the player identified as bh that intersects with the ball
+                potential_bh_tracker_id = {}
+                # Potential bh intersects ball
+                for xyxy, confidence, class_id, tracker_id in detections[detections.class_id == CLASSES['ball-handler']]:
+                    intersection = self.intersection(self.ball.xyxy, xyxy)
+                    if intersection > 0:
+                        potential_bh_tracker_id[tracker_id] = class_id
+                # If there are no intersections, the detected bh are simply filtered
+                if potential_bh_tracker_id == None:
+                    detections = self.conf_filter(detections, CLASSES['ball-handler'])
+                    if detections[detections.class_id == CLASSES['ball-handler']]:
+                        self.active_bh = detections.tracker_id[detections.class_id == CLASSES['ball-handler']]
+                else:
+                    # list with bh that intersect with ball
+                    #detected_bh = list(potential_bh_tracker_id.keys())[list(potential_bh_tracker_id.values()).index(0)]
+                    detected_bh = list(potential_bh_tracker_id.keys())
+                    # select bh with higher confidence
+                    max_conf = 0
+                    for bh_tracker_id in detected_bh:
+                        if max_conf < detections.confidence[detections.tracker_id == bh_tracker_id]:
+                            max_conf = detections.confidence[detections.tracker_id == bh_tracker_id]
+                            self.active_bh = bh_tracker_id
+                    # filter rest of players
+                    detections = self.conf_filter_2(detections, CLASSES['ball-handler'], self.active_bh)
+            else:
+                # if the ball is not detected the bh is the detected bh
+                detections = self.conf_filter(detections, CLASSES['ball-handler'])
+                #if detections[detections.class_id == CLASSES['ball-handler']]:
+                self.active_bh = detections.tracker_id[detections.class_id == CLASSES['ball-handler']]
+        detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']    
 
         # Update first and second layer
         for xyxy, confidence, class_id, tracker_id in detections:
@@ -111,6 +114,8 @@ class observer_hd:
                     #self.players[tracker_id].class_id = 2
                     self.players[tracker_id].bh_counter_inc()
                     #print('player created!')
+                if not self.players[tracker_id].isbh():
+                    self.active_bh = self.old_bh
             
             elif class_id == CLASSES['player']:
                 
@@ -128,6 +133,10 @@ class observer_hd:
                     self.basket = basket_obs(detections[detections.class_id == class_id])
                 else: 
                     self.basket.upd_basket(detections[detections.class_id == class_id])
+        
+        # Keep old bh if there is none
+        if (self.active_bh == self.old_bh):
+            detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']
 
         for player in iter(self.players.values()):
             if player.active:
@@ -150,6 +159,9 @@ class observer_hd:
 
         for _, team in self.teams.items():
             team.upd_team_stats()
+        
+        # Update flags
+        self.old_bh = self.active_bh
 
     def players_deactivate(self):
         for _, player in self.players.items():
