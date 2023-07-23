@@ -612,10 +612,10 @@ class team:
         for player in iter(self.identified_players.values()):
             if player.player_id in player_stats:
                 dict = self.player_stats[player.player_id]
-                player_stats[player.player_id] = {'passes': dict.passes + player.passes,
-                                                        'fga': dict.fga + player.fga,
-                                                        'fgm': dict.fgm + player.fgm,
-                                                        'reb': dict.reb + player.reb}
+                player_stats[player.player_id] = {'passes': dict['passes'] + player.passes,
+                                                        'fga': dict['fga'] + player.fga,
+                                                        'fgm': dict['fgm'] + player.fgm,
+                                                        'reb': dict['reb'] + player.reb}
             else: 
                 player_stats[player.player_id] = {'passes': player.passes,
                                                         'fga': player.fga,
