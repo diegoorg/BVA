@@ -46,7 +46,8 @@ class observer_hd:
         detections = self.conf_filter(detections, CLASSES['made-basket'])
 
         # Get the ball
-        if detections[detections.class_id == CLASSES['ball']]:
+        #if detections[detections.class_id == CLASSES['ball']]:
+        if CLASSES['ball'] in detections.class_id:
             if not self.ball:
                 self.ball = ball_obs(detections[detections.class_id == CLASSES['ball']])
             else: self.ball.upd_ball(detections[detections.class_id == CLASSES['ball']])
