@@ -5,7 +5,7 @@ from utils import decision, intersection
 
 # MACROS
 CLASSES = {'ball':0, 'ball-handler': 1, 'basket':2, 'made-basket':3, 'player':4}
-BH_THRES = 5
+BH_THRES = 2
 TEAM_THRES = 5
 ID_THRES = 0.9
 MB_THRES = 2
