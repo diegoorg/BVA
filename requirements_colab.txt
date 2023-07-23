@@ -1,5 +1,5 @@
 ultralytics
 lapx
-supervision==0.3.0
+supervision==0.3.1
 Pillow==9.5.0 #easyocr needs this previous version
 easyocr
