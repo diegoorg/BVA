@@ -21,7 +21,7 @@ import numpy as np
 from observers import observer_hd, team
 
 #index = 0
-
+'''
 # Player ID
 def player_id(frame, detections):
     global index
@@ -60,7 +60,7 @@ def player_id(frame, detections):
         else: player_id.append('unk')
 
     return player_id
-
+'''
 def zipit(detections, player_team, player_ids):
     player_id_short = []
     player_team_short = []
