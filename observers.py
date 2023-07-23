@@ -13,7 +13,7 @@ TH = [0.4934562550056104, 0.44458746597784793, 0.4529725222840385]
 
 class observer_hd:
     # Class to handle all the layers of observers
-    def __init__(self, team):
+    def __init__(self, teams):
         # first layer
         self.players = {}
         self.basket = None
@@ -25,7 +25,7 @@ class observer_hd:
         self.observers_2 = {}
 
         # third layer
-        self.teams = {0:team} #hardcoded for testing
+        self.teams = teams
 
         # Load OCR model
         self.reader = easyocr.Reader(['en'])
@@ -36,6 +36,9 @@ class observer_hd:
 
         # Deactivate all players to filter
         self.players_deactivate()
+        # Deactivate ball and basket to filter visualization
+        self.ball_deactivate()
+        self.basket_deactivate
 
         # Filter multiple balls, baskets and made-baskets
         detections = self.conf_filter(detections, CLASSES['ball'])
@@ -141,10 +144,13 @@ class observer_hd:
                     self.basket.upd_basket(detections[detections.class_id == class_id])        
         
         # Keep old bh if there is none
-        if self.active_bh != None and self.old_bh != None:
+        if self.active_bh == None:
+            if self.old_bh != None:
+                self.players[self.old_bh].class_id = CLASSES['ball-handler']
+        else:
             if self.players[self.active_bh].isbh():
                 pass
-            else:
+            elif self.old_bh != None:
                 self.players[self.old_bh].class_id = CLASSES['ball-handler']
         #if (self.active_bh == self.old_bh):
         #    detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']
@@ -164,7 +170,7 @@ class observer_hd:
                         self.observers_2['fg_obs'].upd_fg(self.players[int(player.tracker_id)])
                         #print('pass_obs updated')
                     else: 
-                        print(player.tracker_id)
+                        #print(player.tracker_id)
                         self.observers_2['fg_obs'] = fg_obs(self.players[int(player.tracker_id)])
                         #print('pass_obs created')
                 # Player ID
@@ -177,7 +183,7 @@ class observer_hd:
                 self.observers_2['fg_obs'].upd_fg(None)
                 #print('pass_obs updated')
             else: 
-                print(player.tracker_id)
+                #print(player.tracker_id)
                 self.observers_2['fg_obs'] = fg_obs(None)
                 #print('pass_obs created')
         if self.ball and self.basket:
@@ -187,11 +193,13 @@ class observer_hd:
         else: self.observers_2['fg_obs'].mb_counter_reset()
 
         
+        
+        #self.teams[0].upd_players(self.players)
         # Update third layer
-        self.teams[0].upd_players(self.players)
-
         for _, team in self.teams.items():
+            team.upd_players(self.players)
             team.upd_team_stats()
+            team.upd_player_stats()
         
         # Update flags
         #self.old_bh = self.active_bh
@@ -199,6 +207,14 @@ class observer_hd:
     def players_deactivate(self):
         for _, player in self.players.items():
             player.active = 0
+    
+    def ball_deactivate(self):
+        if self.ball != None:
+            self.ball.active = 0
+
+    def basket_deactivate(self):
+        if self.basket != None:
+            self.basket.active = 0
 
     def conf_filter(self, detections, class_id):
         # mofify object detection as only one ball handler allowed
@@ -223,11 +239,11 @@ class observer_hd:
             pass
         else :
             filter_idx = np.where(detections.class_id == class_id)[0]
-            print(filter_idx)
+            #print(filter_idx)
             track_id_idx = np.where(detections.tracker_id == track_id)[0]
-            print(track_id_idx)
+            #print(track_id_idx)
             filter_idx = np.delete(filter_idx, np.where(filter_idx == track_id_idx)[0])
-            print(filter_idx)
+            #print(filter_idx)
             if class_id == CLASSES['ball-handler']:
                 detections.class_id[filter_idx] = CLASSES['player']
         return detections
@@ -268,10 +284,23 @@ class observer_hd:
                     confidence = np.append(confidence, player.conf)
                     tracker_id = np.append(tracker_id, int(player.tracker_id))
                 else: continue
-            detections = sv.Detections(xyxy = xyxy, class_id = class_id.astype(int))
-            detections.confidence = confidence
-            detections.tracker_id = tracker_id
-        else: detections = sv.Detections()
+        if self.basket:
+            if self.basket.active:
+                xyxy = np.vstack([xyxy, self.basket.xyxy])
+                class_id = np.append(class_id, int(self.basket.class_id))
+                confidence = np.append(confidence, self.basket.conf)
+                tracker_id = np.append(tracker_id, int(self.basket.tracker_id))
+        if self.ball:
+            if self.ball.active:
+                xyxy = np.vstack([xyxy, self.ball.xyxy])
+                class_id = np.append(class_id, int(self.ball.class_id))
+                confidence = np.append(confidence, self.ball.conf)
+                tracker_id = np.append(tracker_id, int(self.ball.tracker_id))
+
+        detections = sv.Detections(xyxy = xyxy, class_id = class_id.astype(int))
+        detections.confidence = confidence
+        detections.tracker_id = tracker_id
+        #else: detections = sv.Detections()
         return detections
     
     def export_ply_id(self):
@@ -443,13 +472,17 @@ class basket_obs:
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
+        self.tracker_id = detection.tracker_id
         self.frames = 1
+        self.active = 1
 
     def upd_basket(self, detection):
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
+        self.tracker_id = detection.tracker_id
         self.frames += 1
+        self.active = 1
 
 class ball_obs:
 
@@ -457,13 +490,17 @@ class ball_obs:
         self.xyxy = detection.xyxy[0]
         self.class_id = detection.class_id 
         self.conf = detection.confidence
+        self.tracker_id = detection.tracker_id
         self.frames = 1
+        self.active = 1
 
     def upd_ball(self, detection):
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
+        self.tracker_id = detection.tracker_id
         self.frames += 1
+        self.active = 1
 
 
 ### SECOND LAYER OF OBSERVERS ###
@@ -534,17 +571,25 @@ class team:
     def __init__(self, team_id):
         self.team_id = team_id
         self.players = {}
+        self.identified_players = {}
 
         self.passes = 0
         self.fga = 0
         self.fgm = 0
         self.reb = 0
+        self.player_stats = {}
 
     def upd_players(self, players):
-        self.players = players
+        #for _, player in players.items():
+        for player in iter(players.values()):
+            if player.team == self.team_id:
+                self.players[player.tracker_id[0]] = player
+                if player.player_id != None and player.player_id != 'unk':
+                    self.identified_players[player.tracker_id[0]] = player
+        #self.players = players
 
     def upd_team_stats(self):
-        print('team stats updated')
+        print(f"Team {self.team_id} stats updated")
         passes = 0
         fg = 0
         fg_made = 0
@@ -560,9 +605,50 @@ class team:
         self.fgm = fg_made
         self.reb = rebounds
 
+    def upd_player_stats(self):
+        print(f"Team {self.team_id} player stats updated")
+        player_stats = {}
+        #for _, player in self.identified_players.items():
+        for player in iter(self.identified_players.values()):
+            if player.player_id in player_stats:
+                dict = self.player_stats[player.player_id]
+                player_stats[player.player_id] = {'passes': dict.passes + player.passes,
+                                                        'fga': dict.fga + player.fga,
+                                                        'fgm': dict.fgm + player.fgm,
+                                                        'reb': dict.reb + player.reb}
+            else: 
+                player_stats[player.player_id] = {'passes': player.passes,
+                                                        'fga': player.fga,
+                                                        'fgm': player.fgm,
+                                                        'reb': player.reb}
+        self.player_stats = player_stats
+
     def report(self):
-        print(f"Passes made by team: {self.passes}")
-        print(f"FGA made by team: {self.fga}")
-        print(f"FGM made by team: {self.fgm}")
-        print(f"Rebounds made by team: {self.reb}")
+        print("************")
+        print(f"Team {self.team_id} stats:")
+        print(f"Passes: {self.passes}")
+        print(f"FGA: {self.fga}")
+        print(f"FGM: {self.fgm}")
+        fg_per = 0
+        if self.fga != 0:
+            fg_per = self.fgm/self.fga*100
+        print(f"FG%: {fg_per}")
+        print(f"Rebounds: {self.reb}")
+        print("------------")
+        #print(self.player_stats)
+        for id, player in self.player_stats.items():
+            print(f"Player {id} stats:")
+            print(f"Passes: {player['passes']}")
+            print(f"FGA: {player['fga']}")
+            print(f"FGM: {player['fgm']}")
+            fg_per = 0
+            if player['fga'] != 0:
+                fg_per = player['fgm']/player['fga']*100
+            print(f"FG%: {fg_per}")
+            print(f"Rebounds: {player['reb']}")
+            print("------------")
+        print("************")
+
+
+
     
