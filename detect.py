@@ -173,7 +173,7 @@ with sv.VideoSink(TARGET_VIDEO_PATH, video_info) as sink:
         labels_zip = zipit(printers, player_team, player_ids)
         labels = []
         for _, class_id, confidence, tracker_id, player_team, player_id in labels_zip:
-            if class_id == CLASSES['player']:
+            if class_id == CLASSES['player'] or class_id == CLASSES['ball-handler']:
                 labels.append(f"{tracker_id} {model.model.names[class_id]} {confidence:0.2f}, Team {player_team}, ID: {player_id}")
             else:
                 labels.append(f"{model.model.names[class_id]} {confidence:0.2f}")
