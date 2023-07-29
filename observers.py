@@ -7,7 +7,7 @@ from utils import decision, intersection
 CLASSES = {'ball':0, 'ball-handler': 1, 'basket':2, 'made-basket':3, 'player':4}
 BH_THRES = 2
 MB_THRES = 2
-TEAM_THRES = 5
+TEAM_THRES = 10
 ID_THRES = 0.9
 W_MAX = [0.02370197, 0.01116409, -0.12604768]
 TH = [-0.02705948498696889]
