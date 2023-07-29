@@ -524,6 +524,7 @@ class fg_obs:
                 pass
             else: 
                 self.current_bh.fga = self.current_bh.fga + 1
+                self.fga_timer = 90 #frame cooldown: 3 seconds (3*30fps)
 
     def check_posible_fg(self, ball, basket):
         # Consider a FGA when ball and basket intersect
