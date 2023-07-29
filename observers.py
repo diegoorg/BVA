@@ -6,10 +6,14 @@ from utils import decision, intersection
 # MACROS
 CLASSES = {'ball':0, 'ball-handler': 1, 'basket':2, 'made-basket':3, 'player':4}
 BH_THRES = 2
+MB_THRES = 2
 TEAM_THRES = 5
 ID_THRES = 0.9
-MB_THRES = 2
-TH = [0.4934562550056104, 0.44458746597784793, 0.4529725222840385]
+W_MAX = [0.02370197, 0.01116409, -0.12604768]
+TH = [-0.02705948498696889]
+
+
+### OBSERVERS' HANDLER ###
 
 class observer_hd:
     # Class to handle all the layers of observers
@@ -20,10 +24,8 @@ class observer_hd:
         self.ball = None
         self.active_bh = None
         self.old_bh = None
-
         # second layer
         self.observers_2 = {}
-
         # third layer
         self.teams = teams
 
@@ -46,7 +48,6 @@ class observer_hd:
         detections = self.conf_filter(detections, CLASSES['made-basket'])
 
         # Get the ball
-        #if detections[detections.class_id == CLASSES['ball']]:
         if CLASSES['ball'] in detections.class_id:
             if not self.ball:
                 self.ball = ball_obs(detections[detections.class_id == CLASSES['ball']])
@@ -54,7 +55,6 @@ class observer_hd:
         else: self.ball = None
 
         # Get the ballhandler
-            # if a new bh is not detected, the active bh is the previous one
         if not np.any(detections.class_id == CLASSES['ball-handler']):
             pass
         else:
@@ -72,72 +72,44 @@ class observer_hd:
                     if detections[detections.class_id == CLASSES['ball-handler']]:
                         self.active_bh = detections.tracker_id[detections.class_id == CLASSES['ball-handler']]
                 else:
-                    # list with bh that intersect with ball
-                    #detected_bh = list(potential_bh_tracker_id.keys())[list(potential_bh_tracker_id.values()).index(0)]
+                    # List with bh that intersect with ball
                     detected_bh = list(potential_bh_tracker_id.keys())
-                    # select bh with higher confidence
+                    # Select bh with higher confidence
                     max_conf = 0
                     for bh_tracker_id in detected_bh:
                         if max_conf < detections.confidence[detections.tracker_id == bh_tracker_id]:
                             max_conf = detections.confidence[detections.tracker_id == bh_tracker_id]
                             self.active_bh = bh_tracker_id
-                    # filter rest of players
+                    # Filter rest of players
                     detections = self.conf_filter_2(detections, CLASSES['ball-handler'], self.active_bh)
             else:
-                # if the ball is not detected the bh is the detected bh
+                # If the ball is not detected the bh is the detected bh
                 detections = self.conf_filter(detections, CLASSES['ball-handler'])
-                #if detections[detections.class_id == CLASSES['ball-handler']]:
                 self.active_bh = detections.tracker_id[detections.class_id == CLASSES['ball-handler']]
-        #detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']    
 
         # Update first and second layer
         self.active_bh = None
         for xyxy, confidence, class_id, tracker_id in detections:
-            '''
-            if (class_id == 0) or (class_id == 2):
-                if tracker_id in self.players:
-                    # right now this if else makes no sense but we'll see
-                    self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
-                    print('player updated!')
-                else: 
-                    self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
-                    print('player created!')
-                
-                if (class_id == 0):
-                    if 'pass_obs' in self.observers_2:
-                        self.observers_2['pass_obs'].upd_bh(self.players[tracker_id])
-                        print('pass_obs updated')
-                    else: 
-                        self.observers_2['pass_obs'] = pass_obs(self.players[tracker_id])
-                        print('pass_obs created')
-            '''
+            # Increment bh counter. Save info
             if class_id == CLASSES['ball-handler']:
                 self.active_bh = tracker_id
                 if tracker_id in self.players:
                     self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
-                    # keep player as class 2 until it gets to the threshold
-                    #self.players[tracker_id].class_id = 2
                     self.players[tracker_id].bh_counter_inc()
-                    #print('player updated!')
                 else: 
                     self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
-                    # keep player as class 2 until it gets to the threshold
-                    #self.players[tracker_id].class_id = 2
                     self.players[tracker_id].bh_counter_inc()
-                    #print('player created!')
                 if self.players[tracker_id].isbh():
                     self.old_bh = tracker_id
-            
+            # Reset bh cpunter. Save info
             elif class_id == CLASSES['player']:
                 if tracker_id in self.players:
                     self.players[tracker_id].upd_player(detections[detections.tracker_id == tracker_id])
                     self.players[tracker_id].bh_counter_reset()
-                    #print('player updated!')
                 else: 
                     self.players[tracker_id] = player_obs(detections[detections.tracker_id == tracker_id])
                     self.players[tracker_id].bh_counter_reset()
-                    #print('player created!')
-
+            # Save basket info
             elif class_id == CLASSES['basket'] or class_id == CLASSES['made-basket']:
                 if not self.basket:
                     self.basket = basket_obs(detections[detections.class_id == class_id])
@@ -153,57 +125,43 @@ class observer_hd:
                 pass
             elif self.old_bh != None:
                 self.players[self.old_bh].class_id = CLASSES['ball-handler']
-        #if (self.active_bh == self.old_bh):
-        #    detections.class_id[detections.tracker_id == self.active_bh] = CLASSES['ball-handler']
 
+        # Update second layer and execute player Identification
         for player in iter(self.players.values()):
             if player.active:
                 # second layer
                 if (player.class_id == CLASSES['ball-handler']):
                     if 'pass_obs' in self.observers_2:
                         self.observers_2['pass_obs'].upd_bh(self.players[int(player.tracker_id)])
-                        #print('pass_obs updated')
                     else: 
                         print(player.tracker_id)
                         self.observers_2['pass_obs'] = pass_obs(self.players[int(player.tracker_id)])
-                        #print('pass_obs created')
                     if 'fg_obs' in self.observers_2:
                         self.observers_2['fg_obs'].upd_fg(self.players[int(player.tracker_id)])
-                        #print('pass_obs updated')
                     else: 
-                        #print(player.tracker_id)
                         self.observers_2['fg_obs'] = fg_obs(self.players[int(player.tracker_id)])
-                        #print('pass_obs created')
                 # Player ID
                 player.upd_player_id(frame, self.reader, self.reduced_class)
 
-        # Update field goal information
-        # If there was no bh
+        # Update field goal information if there was no bh
         if len([player for player in iter(self.players.values()) if player.class_id == CLASSES['ball-handler']]) == 0:
             if 'fg_obs' in self.observers_2:
                 self.observers_2['fg_obs'].upd_fg(None)
-                #print('pass_obs updated')
             else: 
-                #print(player.tracker_id)
                 self.observers_2['fg_obs'] = fg_obs(None)
-                #print('pass_obs created')
+        
+        # Trigger FGA/FGM
         if self.ball and self.basket:
             self.observers_2['fg_obs'].check_posible_fg(self.ball, self.basket)
         if detections[detections.class_id == CLASSES['made-basket']]:
             self.observers_2['fg_obs'].mb_counter_inc()
         else: self.observers_2['fg_obs'].mb_counter_reset()
 
-        
-        
-        #self.teams[0].upd_players(self.players)
         # Update third layer
         for _, team in self.teams.items():
             team.upd_players(self.players)
             team.upd_team_stats()
             team.upd_player_stats()
-        
-        # Update flags
-        #self.old_bh = self.active_bh
 
     def players_deactivate(self):
         for _, player in self.players.items():
@@ -218,47 +176,49 @@ class observer_hd:
             self.basket.active = 0
 
     def conf_filter(self, detections, class_id):
-        # mofify object detection as only one ball handler allowed
+        # Mofify object detection as only one ball handler allowed
+        # Delete or modify detections to keep higher confidence object
         filter_idx = np.where(detections.class_id == class_id)[0]
-        #print(filter_idx)
         if filter_idx.size > 1:
             filtered_conf = detections.confidence[filter_idx]
             max_idx = filtered_conf.argmax(axis = 0)
             filter_idx = np.delete(filter_idx, max_idx)
             if class_id == CLASSES['ball-handler']:
+                # Change bh to player
                 detections.class_id[filter_idx] = CLASSES['player']
-            else:  #class_id == CLASSES['ball']:
+            else:
+                # Delete lower confidence detections
                 detections.xyxy = np.delete(detections.xyxy, filter_idx)
                 detections.class_id = np.delete(detections.class_id, filter_idx)
                 detections.confidence = np.delete(detections.confidence, filter_idx)
                 detections.tracker_id = np.delete(detections.tracker_id, filter_idx)
-        #print(detections.class_id)
         return detections
     
     def conf_filter_2(self, detections, class_id, track_id):
+        # Keep specific object as the only object for class_id class
         if track_id == None:
             pass
         else :
             filter_idx = np.where(detections.class_id == class_id)[0]
-            #print(filter_idx)
             track_id_idx = np.where(detections.tracker_id == track_id)[0]
-            #print(track_id_idx)
             filter_idx = np.delete(filter_idx, np.where(filter_idx == track_id_idx)[0])
-            #print(filter_idx)
             if class_id == CLASSES['ball-handler']:
                 detections.class_id[filter_idx] = CLASSES['player']
         return detections
 
     def intersection(self, bb1, bb2):
-
-        # https://stackoverflow.com/questions/25349178/calculating-percentage-of-bounding-box-overlap-for-image-detector-evaluation
-
+        # Intersection measurement between 2 given bbox
+        '''
+        Code obtained from:
+        https://stackoverflow.com/questions/25349178/calculating-percentage-of-bounding-box-overlap-for-image-detector-evaluation
+        '''
+        # Check input data
         assert bb1[0] < bb1[2]
         assert bb1[1] < bb1[3]
         assert bb2[0] < bb2[2]
         assert bb2[1] < bb2[3]
 
-        # determine the coordinates of the intersection rectangle
+        # Determine the coordinates of the intersection rectangle
         x_left = max(bb1[0], bb2[0])
         y_top = max(bb1[1], bb2[1])
         x_right = min(bb1[2], bb2[2])
@@ -273,6 +233,8 @@ class observer_hd:
         return intersection_area
     
     def export_obs(self):
+        # Export observers for annotation
+        # The output is a sv.Detections object
         xyxy = np.empty((0,4))
         class_id = []
         confidence = np.array([])
@@ -301,44 +263,43 @@ class observer_hd:
         detections = sv.Detections(xyxy = xyxy, class_id = class_id.astype(int))
         detections.confidence = confidence
         detections.tracker_id = tracker_id
-        #else: detections = sv.Detections()
         return detections
     
     def export_ply_id(self):
+        # Export player ID as a dict
         player_id = {}
         for player in iter(self.players.values()):
             player_id[player.tracker_id[0]] = player.player_id
         return player_id
     
     def export_ply_team(self):
+        # Export player team as a dict
         player_team = {}
         for player in iter(self.players.values()):
             player_team[player.tracker_id[0]] = player.team
         return player_team
 
     
-
-
 ### FIRST LAYER OF OBSERVERS ###
+
 class player_obs:
 
     def __init__(self, detection):
-        #self.xyxy, self.conf, self.class_id, self.tracker_id = detections[detections.tracker_id == tracker_id]
+        # Player basic info
         self.xyxy = detection.xyxy[0]
         self.class_id = detection.class_id
         self.conf = detection.confidence
         self.tracker_id = detection.tracker_id
-
+        # BH info
         self.frames = 1
         self._active = 1
         self.bh_count = 0
-
+        # Team and ID info
         self.team = None
         self.team_tmp = None
         self.team_cnt = 0
         self._player_id = None
-
-        #make getters and setters for all this things
+        # Stats
         self._passes = 0
         self._fga = 0
         self._fgm = 0
@@ -395,6 +356,7 @@ class player_obs:
         self._reb = p
 
     def bh_counter_inc(self):
+        # Considere player as bh after several (BH_THRES) detections
         self.bh_count += 1
         if self.bh_count >= BH_THRES:
             self.class_id = CLASSES['ball-handler']
@@ -406,9 +368,11 @@ class player_obs:
         self.class_id = CLASSES['player']
 
     def isbh(self):
+        # Check if object is bh
         return (self.class_id == CLASSES['ball-handler'])
 
     def upd_player(self, detection):
+        # Update object basic information with detection
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id
         self.conf = detection.confidence
@@ -417,59 +381,53 @@ class player_obs:
         self._active = 1
         self.frames += 1
 
-    def upd_player_team(self, frame):
-        if not self.team:
-            # number identification function
-            pass
-
     def upd_player_id(self, frame, reader, reduced_class):
+        # Function for team classification and number recognition
         if not self.player_id or self.player_id == 'unk' or self.team_cnt < TEAM_THRES:
-            # number identification function
+            # Number identification function
             frame_h, frame_w, _ = frame.shape
 
-            # all numbers positive integers
+            # All numbers positive integers
             list1 = np.asarray(self.xyxy, dtype = 'int')
             x1,y1,x2,y2 = [(i > 0) * i for i in list1]
-            #print(x1,x2,y1,y2)
 
-            # hight and width
+            # Hight and width
             h = y2-y1
             w = x2-x1
 
-            # make sure all positive
+            # Make sure all positive
             a = int(max(0, y1+0.25*h))
             b = int(min(frame_h, y2-0.5*h))
             c = int(max(0, x1+0.25*w))
             d = int(min(frame_w, x2-0.25*w))
 
+            # Crop original frame
             crop = frame[a:b,c:d]
 
-            #img = Image.fromarray(crop, 'RGB')
-            #img.save(f"test{index}.jpeg")
-            #index += 1
+            # Execute team classification
             if self.team_cnt < TEAM_THRES:
-                tmp = decision(TH, crop)
+                tmp = decision(crop, W_MAX, TH)
                 if self.team_tmp == tmp:
                     self.team_cnt += 1
                 else: self.team_cnt = 0
                 self.team_tmp = tmp
                 if self.team_cnt == TEAM_THRES:
                     self.team = tmp
+            # Execute number recognition
             if not self.player_id or self.player_id == 'unk':
                 result = reader.readtext(crop, allowlist = reduced_class)
-                #print(result)
                 if result != []:
-                    id_box, id_num, id_conf = result[0]
+                    _, id_num, id_conf = result[0]
+                    # Only consider numbers with confidence higher than ID_THRES
                     if id_conf >= ID_THRES:
                         self.player_id = id_num
                     else: self.player_id = 'unk'
                 else: self.player_id = 'unk'
 
-
 class basket_obs:
 
     def __init__(self, detection):
-        #self.xyxy, self.conf, self.class_id, self.tracker_id = detections[detections.tracker_id == tracker_id]
+        # Basket basic info
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
@@ -478,6 +436,7 @@ class basket_obs:
         self.active = 1
 
     def upd_basket(self, detection):
+        # Update basic info
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
@@ -488,6 +447,7 @@ class basket_obs:
 class ball_obs:
 
     def __init__(self, detection):
+        # Ball basic info
         self.xyxy = detection.xyxy[0]
         self.class_id = detection.class_id 
         self.conf = detection.confidence
@@ -496,6 +456,7 @@ class ball_obs:
         self.active = 1
 
     def upd_ball(self, detection):
+        # Update basic info
         self.xyxy = detection.xyxy[0] 
         self.class_id = detection.class_id 
         self.conf = detection.confidence
@@ -508,14 +469,16 @@ class ball_obs:
 
 class pass_obs:
     def __init__(self, player_obs):
+        # Pass basic info
         self.current_bh = player_obs
         self.prev_bh = None
         self.pass_flag = 0
 
     def upd_bh(self, player):
+        # Update bh info
         self.prev_bh = self.current_bh
         self.current_bh = player
-
+        # When the bh changes in the same team, pass assigned to previous bh
         if self.prev_bh != None and self.prev_bh != self.current_bh and self.prev_bh.team == self.current_bh.team:
             self.pass_flag = 1
             self.prev_bh.passes += 1
@@ -523,29 +486,39 @@ class pass_obs:
         else: self.pass_flag = 0
 
 class fg_obs:
+
     def __init__(self,player):
+        # FG basic info
         self.current_bh = player
         self.fgm_flag = 0
         self.reb_flag = 0
+        # Made-basket counter
         self.mb_count = 0
+        # FGA and FGM timers
         self.fga_timer = 0
         self.fgm_timer = 0
 
     def upd_fg(self, player):
+        # Update basic info
         self.current_bh = player
+        # Decrement timer for FGA
         if self.fga_timer:
             self.fga_timer -= 1
+        # Assign rebound
         elif player != None and self.reb_flag:
             self.reb_flag = 0
             self.current_bh.reb = self.current_bh.reb + 1
+        # Decrement timer for FGM
         if self.fgm_timer:
             self.fgm_timer -= 1
+        # Assign made-basket to bh
         if self.fgm_flag and self.current_bh and (player != None):
             self.current_bh.fgm = self.current_bh.fgm + 1
             print(f"field goal made by player {self.current_bh.tracker_id}")
             self.fgm_flag = 0
 
     def check_posible_fg(self, ball, basket):
+        # Consider a FGA when ball and basket intersect
         if self.fga_timer:
             pass
         else: 
@@ -556,24 +529,27 @@ class fg_obs:
                 print(f"field goal attempt from player {self.current_bh.tracker_id}")
     
     def mb_counter_inc(self):
+        # Increment the made-basket counter
         self.mb_count += 1
         if self.mb_count == MB_THRES and not(self.fgm_timer):
             self.fgm_timer = 60 #frame cooldown: 2 seconds (2*30fps) 
             self.fgm_flag = 1
 
     def mb_counter_reset(self):
+        # Reset made-basket counter
         self.mb_count = 0
 
 
-### THIRD LAYER OF OBSERVERS ###
+### Stats Container ###
 
 class team:
     
     def __init__(self, team_id):
+        # Team basic info
         self.team_id = team_id
         self.players = {}
         self.identified_players = {}
-
+        # Stats
         self.passes = 0
         self.fga = 0
         self.fgm = 0
@@ -581,15 +557,16 @@ class team:
         self.player_stats = {}
 
     def upd_players(self, players):
-        #for _, player in players.items():
+        # Save players that belong to the team
+        # Save identified player for individual stats
         for player in iter(players.values()):
             if player.team == self.team_id:
                 self.players[player.tracker_id[0]] = player
                 if player.player_id != None and player.player_id != 'unk':
                     self.identified_players[player.tracker_id[0]] = player
-        #self.players = players
 
     def upd_team_stats(self):
+        # Gather team stats
         print(f"Team {self.team_id} stats updated")
         passes = 0
         fg = 0
@@ -607,9 +584,9 @@ class team:
         self.reb = rebounds
 
     def upd_player_stats(self):
+        # Gather individual stats
         print(f"Team {self.team_id} player stats updated")
         player_stats = {}
-        #for _, player in self.identified_players.items():
         for player in iter(self.identified_players.values()):
             if player.player_id in player_stats:
                 dict = self.player_stats[player.player_id]
@@ -625,6 +602,7 @@ class team:
         self.player_stats = player_stats
 
     def report(self):
+        # Report team and individual stats
         print("************")
         print(f"Team {self.team_id} stats:")
         print(f"Passes: {self.passes}")
@@ -636,7 +614,6 @@ class team:
         print(f"FG%: {fg_per}")
         print(f"Rebounds: {self.reb}")
         print("------------")
-        #print(self.player_stats)
         for id, player in self.player_stats.items():
             print(f"Player {id} stats:")
             print(f"Passes: {player['passes']}")
@@ -648,8 +625,4 @@ class team:
             print(f"FG%: {fg_per}")
             print(f"Rebounds: {player['reb']}")
             print("------------")
-        print("************")
-
-
-
-    
+        print("************")   
