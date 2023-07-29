@@ -10,7 +10,7 @@ MB_THRES = 2
 TEAM_THRES = 10
 ID_THRES = 0.9
 W_MAX = [0.02370197, 0.01116409, -0.12604768]
-TH = [-0.02705948498696889]
+TH = -0.02705948498696889
 
 
 ### OBSERVERS' HANDLER ###
@@ -396,7 +396,7 @@ class player_obs:
             w = x2-x1
 
             # Make sure all positive
-            a = int(max(0, y1+0.25*h))
+            a = int(max(0, y1+0.15*h))
             b = int(min(frame_h, y2-0.5*h))
             c = int(max(0, x1+0.25*w))
             d = int(min(frame_w, x2-0.25*w))
@@ -516,6 +516,10 @@ class fg_obs:
             self.current_bh.fgm = self.current_bh.fgm + 1
             print(f"field goal made by player {self.current_bh.tracker_id}")
             self.fgm_flag = 0
+            if self.fga_timer:
+                pass
+            else: 
+                self.current_bh.fga = self.current_bh.fga + 1
 
     def check_posible_fg(self, ball, basket):
         # Consider a FGA when ball and basket intersect
@@ -534,6 +538,7 @@ class fg_obs:
         if self.mb_count == MB_THRES and not(self.fgm_timer):
             self.fgm_timer = 60 #frame cooldown: 2 seconds (2*30fps) 
             self.fgm_flag = 1
+            
 
     def mb_counter_reset(self):
         # Reset made-basket counter
