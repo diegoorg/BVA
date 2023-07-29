@@ -1,6 +1,7 @@
 import numpy as np
 import supervision as sv
 import easyocr
+import cv2
 from utils import decision, intersection 
 
 # MACROS
@@ -386,6 +387,9 @@ class player_obs:
         if not self.player_id or self.player_id == 'unk' or self.team_cnt < TEAM_THRES:
             # Number identification function
             frame_h, frame_w, _ = frame.shape
+
+            # Change color from BGR to RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             # All numbers positive integers
             list1 = np.asarray(self.xyxy, dtype = 'int')
