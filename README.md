@@ -5,8 +5,14 @@ This repository contains the code implemented for the work: Deep-Learning-Based 
 # Install
 
 ## install dependencies
+
+### For Google Colab
 ```bash
 pip install -r requirements_colab.txt
+```
+
+### For PC
+```bash
 pip install -r requirements_pc.txt
 ```
 
