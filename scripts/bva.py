@@ -19,7 +19,6 @@ drive.mount('/content/drive')
 
 username = 'diegoorg'
 repository = 'BVA'
-git_token = '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'
 
 # Commented out IPython magic to ensure Python compatibility.
 # %cd {repository}
@@ -42,7 +41,7 @@ git_token = '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'
 # Commented out IPython magic to ensure Python compatibility.
 # %cd /content/drive/MyDrive/TFM/repo4/
 
-!git clone https://{git_token}@github.com/{username}/{repository}
+!git clone https://github.com/{username}/{repository}
 
 # Commented out IPython magic to ensure Python compatibility.
 # %cd /content/drive/MyDrive/TFM/repo4/{repository}
@@ -57,7 +56,6 @@ git_token = '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'
 
 username = 'diegoorg'
 repository = 'BVA'
-git_token = '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'
 
 # Commented out IPython magic to ensure Python compatibility.
 # %cd /content/drive/MyDrive/TFM/repo4/{repository}

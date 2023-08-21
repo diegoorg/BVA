@@ -41,7 +41,7 @@ class observer_hd:
         self.players_deactivate()
         # Deactivate ball and basket to filter visualization
         self.ball_deactivate()
-        self.basket_deactivate
+        self.basket_deactivate()
 
         # Filter multiple balls, baskets and made-baskets
         detections = self.conf_filter(detections, CLASSES['ball'])
